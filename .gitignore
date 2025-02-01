@@ -1,0 +1,30 @@
+# Ignore the target directory, where compiled files are stored
+/target/
+
+# Ignore the Cargo.lock file if you're building a library
+# Cargo.lock
+
+# Ignore backup and temporary files
+*.rs.bk
+*.swp
+*.swo
+*.bak
+*.tmp
+
+# Ignore the .idea directory (for JetBrains IDEs)
+.idea/
+
+# Ignore the .vscode directory (for Visual Studio Code)
+.vscode/
+
+# Ignore the .DS_Store file (macOS)
+.DS_Store
+
+# Ignore the Thumbs.db file (Windows)
+Thumbs.db
+
+# Ignore the node_modules directory (if using Node.js)
+node_modules/
+
+# Ignore the .env file (if using environment variables)
+.env
