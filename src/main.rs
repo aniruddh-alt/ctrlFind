@@ -95,12 +95,14 @@ impl<'ast> Visit<'ast> for CodeVisitor {
 
         let body = node.block.to_token_stream().to_string();
 
+        let fn_content = format!(
+            "fn {}({}) {} {{\n{}\n}}",
+            fn_name,
+            params.iter().map(|(name, typ)| format!("{} {}", name, typ)).collect::<Vec<String>>().join(", "),
+            return_type.as_deref().unwrap_or(""),
+            body
+        );
 
-        let fn_content = format!("fn {}({}) {} {{\n{}\n}}}}", fn_name,
-        params.iter().map(|(name,typ)| format!("{} {}",name,typ)).collect::<Vec<String>>().join(", "),
-        return_type.as_deref().unwrap_or(""),
-        body);
-        
         self.elements.push(CodeElement {
             name: fn_name,
             code_type: "function".to_string(),
@@ -114,7 +116,7 @@ impl<'ast> Visit<'ast> for CodeVisitor {
             return_type: return_type,
             context: self.context_stack.clone(),
         });
-        
+
         visit::visit_item_fn(self, node);
     }
 
@@ -149,13 +151,59 @@ impl<'ast> Visit<'ast> for CodeVisitor {
     fn visit_item_impl(&mut self, node: &'ast syn::ItemImpl) {
         let type_name = node.self_ty.to_token_stream().to_string();
         self.context_stack.push(format!("impl {}", type_name));
+    
+        // Visit all items in the impl block
+        for item in &node.items {
+            self.visit_impl_item(item); // Handle all impl item types
+        }
+    
         visit::visit_item_impl(self, node);
         self.context_stack.pop();
     }
+    
+    fn visit_impl_item(&mut self, node: &'ast syn::ImplItem) {
+        match node {
+            syn::ImplItem::Fn(method) => {
+                // Handle methods
+                let method_name = method.sig.ident.to_string();
+                let (params, return_type) = Self::process_function_sig(&method.sig);
+                let method_content = format!(
+                    "fn {}({}) {} {{\n{}\n}}",
+                    method_name,
+                    params.iter().map(|(name, typ)| format!("{} {}", name, typ)).collect::<Vec<String>>().join(", "),
+                    return_type.as_deref().unwrap_or(""),
+                    method.block.to_token_stream().to_string()
+                );
 
-
+                
+                self.elements.push(CodeElement {
+                    name: method_name,
+                    code_type: "method".into(),
+                    content: method_content.to_string(),
+                    language: "rust".into(),
+                    context: self.context_stack.clone(),
+                    parameters: Some(params),
+                    return_type: return_type,
+                    docs: Self::extract_docs(&method.attrs),
+                    attributes: Self::extract_attributes(&method.attrs),
+                    path: self.current_file.clone(),
+                    embedding: None,
+                });
+                
+                visit::visit_impl_item_fn(self, method);
+            }
+            syn::ImplItem::Const(cnst) => {
+                // Handle constants
+                visit::visit_impl_item_const(self, cnst);
+            }
+            syn::ImplItem::Type(typ) => {
+                // Handle associated types
+                visit::visit_impl_item_type(self, typ);
+            }
+            _ => {}
+        }
+    }
 }
-
 
 struct SemanticSearch {
     model: rust_bert::pipelines::sentence_embeddings::SentenceEmbeddingsModel,
@@ -202,6 +250,7 @@ impl SemanticSearch{
                     element.attributes.join("\n"),
                     element.content
                 );
+                println!("{:?}",&context);
                 
                 let embedding = self.generate_embeddings(&context).unwrap();
                 element.embedding = Some(embedding);
