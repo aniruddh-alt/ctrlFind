@@ -248,7 +248,6 @@ impl SemanticSearch{
                     element.attributes.join("\n"),
                     element.content
                 );
-                println!("{:?}",&context);
                 
                 let embedding = self.generate_embeddings(&context).unwrap();
                 element.embedding = Some(embedding);
